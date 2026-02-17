@@ -1,0 +1,181 @@
+:root {
+  --bg: #f4f1ea;
+  --surface: #fffef8;
+  --ink: #191714;
+  --muted: #5b554d;
+  --accent: #0d7a5f;
+  --accent-soft: #d8efe7;
+  --line: #ddd4c6;
+  --danger: #b42318;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top right, #efe6d4, var(--bg) 45%);
+  color: var(--ink);
+}
+
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+  display: grid;
+  gap: 16px;
+}
+
+.stack-sm {
+  display: grid;
+  gap: 8px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+h1 {
+  margin: 4px 0 8px;
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.button {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.button-secondary {
+  background: var(--accent-soft);
+  color: #0b3f32;
+  border-color: #b8ddcf;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 0.95rem;
+}
+
+select {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 0.95rem;
+  background: white;
+}
+
+.tab-row {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.tab {
+  border: 0;
+  padding: 8px 14px;
+  background: #f2ebde;
+  cursor: pointer;
+}
+
+.tab-active {
+  background: var(--accent);
+  color: white;
+}
+
+.error {
+  color: var(--danger);
+  font-weight: 600;
+  margin: 0;
+}
+
+.league-list,
+.member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.league-item,
+.member-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.member-item-highlight {
+  border-color: #0d7a5f;
+  background: #eef9f5;
+}
+
+.muted {
+  color: var(--muted);
+  margin: 0;
+}
+
+.inline-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+code {
+  background: #ece4d8;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
