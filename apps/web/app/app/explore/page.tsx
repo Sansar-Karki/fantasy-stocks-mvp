@@ -1,14 +1,53 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect, useState } from "react";
 
-const trending = [
-  { ticker: "NVDA", name: "NVIDIA Corp.", move: "+5.2%", sector: "Tech", cap: "$2.2T" },
-  { ticker: "AAPL", name: "Apple Inc.", move: "+1.8%", sector: "Tech", cap: "$3.8T" },
-  { ticker: "TSLA", name: "Tesla Inc.", move: "+3.8%", sector: "Auto", cap: "$850B" }
-];
+import { getMarketQuote, searchMarket } from "../../../lib/api";
+import type { MarketQuote, MarketSearchResult } from "../../../lib/types";
 
 export default function ExplorePage() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<MarketSearchResult[]>([]);
+  const [selectedQuote, setSelectedQuote] = useState<MarketQuote | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        setSearchLoading(true);
+        const rows = await searchMarket(query, 8);
+        setResults(rows);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Search failed");
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  async function handleSelectTicker(ticker: string) {
+    try {
+      setQuoteLoading(true);
+      const quote = await getMarketQuote(ticker);
+      setSelectedQuote(quote);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load quote");
+    } finally {
+      setQuoteLoading(false);
+    }
+  }
+
   return (
     <div className="container app-container phone-canvas">
       <header className="topbar">
@@ -18,41 +57,91 @@ export default function ExplorePage() {
         </div>
       </header>
 
-      <section className="sheet-card">
+      <section className="sheet-card stack-sm">
         <label>
           Search Stocks
-          <input type="text" placeholder="AAPL, TSLA, NVIDIA..." />
+          <input
+            type="text"
+            placeholder="AAPL, TSLA, NVIDIA..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
         </label>
+        {searchLoading ? <p className="muted">Searching...</p> : null}
       </section>
+
+      {error ? <p className="error card">{error}</p> : null}
 
       <section className="sheet-card">
         <div className="section-head">
-          <h2>Trending Today</h2>
-          <span className="muted">Live</span>
+          <h2>Results</h2>
+          <span className="muted">{results.length}</span>
         </div>
+        {results.length === 0 ? <p className="muted">Type a ticker or company name to search.</p> : null}
         <ul className="tx-list">
-          {trending.map((stock) => (
+          {results.map((stock) => (
             <li key={stock.ticker} className="tx-item">
               <div>
-                <strong>
-                  {stock.ticker} {stock.move}
-                </strong>
+                <strong>{stock.ticker}</strong>
                 <p className="muted">
-                  {stock.name} · {stock.sector} · {stock.cap}
+                  {stock.name}
+                  {stock.exchange ? ` · ${stock.exchange}` : ""}
                 </p>
               </div>
-              <Link className="tx-link" href="/app/home">
+              <button className="button button-secondary" type="button" onClick={() => void handleSelectTicker(stock.ticker)}>
                 View
-              </Link>
+              </button>
             </li>
           ))}
         </ul>
       </section>
 
-      <section className="sheet-card">
-        <h2>Top Gainers (Week)</h2>
-        <p className="muted">NVDA +12.4% · AMD +9.8% · TSLA +8.3%</p>
-      </section>
+      {selectedQuote ? (
+        <section className="sheet-card">
+          <div className="section-head">
+            <h2>{selectedQuote.ticker}</h2>
+            <span className={
+              selectedQuote.daily_change_percent !== null && selectedQuote.daily_change_percent < 0 ? "down" : "up"
+            }>
+              {selectedQuote.daily_change_percent !== null
+                ? `${selectedQuote.daily_change_percent.toFixed(2)}%`
+                : "-"}
+            </span>
+          </div>
+          {quoteLoading ? <p className="muted">Loading quote...</p> : null}
+          <ul className="tx-list">
+            <li className="tx-item"><span>Name</span><strong>{selectedQuote.name}</strong></li>
+            <li className="tx-item"><span>Price</span><strong>{formatMoney(selectedQuote.current_price)}</strong></li>
+            <li className="tx-item"><span>Market Cap</span><strong>{formatCompactMoney(selectedQuote.market_cap)}</strong></li>
+            <li className="tx-item"><span>Sector</span><strong>{selectedQuote.sector ?? "-"}</strong></li>
+            <li className="tx-item"><span>P/E</span><strong>{formatNumber(selectedQuote.pe_ratio)}</strong></li>
+            <li className="tx-item">
+              <span>52W Range</span>
+              <strong>{formatMoney(selectedQuote.fifty_two_week_low)} - {formatMoney(selectedQuote.fifty_two_week_high)}</strong>
+            </li>
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
+}
+
+function formatMoney(value: number | null): string {
+  if (value === null) return "-";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+}
+
+function formatCompactMoney(value: number | null): string {
+  if (value === null) return "-";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    maximumFractionDigits: 1
+  }).format(value);
+}
+
+function formatNumber(value: number | null): string {
+  if (value === null) return "-";
+  return value.toFixed(2);
 }

@@ -18,6 +18,7 @@ class DraftPublic(BaseModel):
     total_rounds: int
     pick_seconds: int
     current_pick_number: int
+    current_pick_started_at: datetime | None
     started_at: datetime | None
     completed_at: datetime | None
     created_at: datetime

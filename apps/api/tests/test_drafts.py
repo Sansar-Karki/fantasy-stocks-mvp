@@ -137,3 +137,43 @@ def test_draft_room_shows_current_picker(client: TestClient) -> None:
     assert payload["current_round"] == 1
     assert payload["current_picker_user_id"] == 1
     assert payload["total_picks"] == 16
+
+
+def test_draft_turn_auto_forfeits_when_timer_expires(client: TestClient, monkeypatch) -> None:
+    from datetime import datetime, timedelta
+
+    from app.api import drafts as drafts_api
+
+    owner_token = _register_and_get_token(client, "d_owner5@example.com", "d_owner5")
+    league = _create_league(client, owner_token)
+
+    member_token = _register_and_get_token(client, "d_member5@example.com", "d_member5")
+    join = client.post(
+        "/api/leagues/join",
+        headers={"Authorization": f"Bearer {member_token}"},
+        json={"invite_code": league["invite_code"]},
+    )
+    assert join.status_code == 200
+
+    start = client.post(
+        f"/api/leagues/{league['id']}/draft/start",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={"pick_seconds": 10},
+    )
+    assert start.status_code == 201
+
+    started_at = datetime.fromisoformat(start.json()["current_pick_started_at"])
+    monkeypatch.setattr(
+        drafts_api,
+        "_now_utc",
+        lambda: started_at + timedelta(seconds=11),
+    )
+
+    room = client.get(
+        f"/api/leagues/{league['id']}/draft",
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+    assert room.status_code == 200
+    payload = room.json()
+    assert payload["draft"]["current_pick_number"] == 2
+    assert payload["current_picker_user_id"] == 2

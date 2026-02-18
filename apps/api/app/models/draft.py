@@ -16,6 +16,9 @@ class Draft(Base):
     total_rounds: Mapped[int] = mapped_column(Integer, default=8)
     pick_seconds: Mapped[int] = mapped_column(Integer, default=60)
     current_pick_number: Mapped[int] = mapped_column(Integer, default=1)
+    current_pick_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

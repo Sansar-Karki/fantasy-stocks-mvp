@@ -18,6 +18,7 @@ export default function DraftRoomPage() {
   const [ticker, setTicker] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
 
   const leagueId = Number(params.id);
 
@@ -58,12 +59,45 @@ export default function DraftRoomPage() {
   }, [leagueId, loadDraft, router, token]);
 
   useEffect(() => {
-    if (!token || !draftRoom || draftRoom.draft.status !== "live") return;
+    if (!token || !draftRoom || draftRoom.draft.status !== "live" || isRealtimeConnected) return;
     const interval = setInterval(() => {
       void loadDraft();
     }, 5000);
     return () => clearInterval(interval);
-  }, [draftRoom, loadDraft, token]);
+  }, [draftRoom, isRealtimeConnected, loadDraft, token]);
+
+  useEffect(() => {
+    if (!token || !Number.isFinite(leagueId)) return;
+    const websocketUrl = buildDraftWebsocketUrl(leagueId, token);
+    if (!websocketUrl) return;
+
+    const ws = new WebSocket(websocketUrl);
+
+    ws.onopen = () => {
+      setIsRealtimeConnected(true);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data) as DraftRoomResponse;
+        setDraftRoom(payload);
+      } catch {
+        // Ignore malformed payloads.
+      }
+    };
+
+    ws.onerror = () => {
+      setIsRealtimeConnected(false);
+    };
+
+    ws.onclose = () => {
+      setIsRealtimeConnected(false);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [leagueId, token]);
 
   async function handleStartDraft() {
     if (!token || !Number.isFinite(leagueId)) return;
@@ -114,6 +148,7 @@ export default function DraftRoomPage() {
           <section className="sheet-card draft-hero">
             <p className="muted">League #{leagueId}</p>
             <h1>{draftRoom.draft.status === "live" ? "Draft is live" : "Draft board ready"}</h1>
+            <p className="muted">{isRealtimeConnected ? "Realtime connected" : "Realtime reconnecting..."}</p>
             <div className="draft-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
               <span style={{ width: `${progress}%` }} />
             </div>
@@ -168,4 +203,13 @@ export default function DraftRoomPage() {
       ) : null}
     </main>
   );
+}
+
+function buildDraftWebsocketUrl(leagueId: number, token: string): string | null {
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (!apiBase) return null;
+
+  const root = apiBase.endsWith("/api") ? apiBase.slice(0, -4) : apiBase;
+  const websocketBase = root.replace(/^http:/, "ws:").replace(/^https:/, "wss:");
+  return `${websocketBase}/api/leagues/${leagueId}/draft/ws?token=${encodeURIComponent(token)}`;
 }

@@ -47,6 +47,7 @@ export type DraftPublic = {
   total_rounds: number;
   pick_seconds: number;
   current_pick_number: number;
+  current_pick_started_at: string | null;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
@@ -168,4 +169,22 @@ export type PlayoffBracketResponse = {
   league_id: number;
   matches: PlayoffMatchPublic[];
   champion_user_id: number | null;
+};
+
+export type MarketSearchResult = {
+  ticker: string;
+  name: string;
+  exchange: string | null;
+};
+
+export type MarketQuote = {
+  ticker: string;
+  name: string;
+  current_price: number | null;
+  daily_change_percent: number | null;
+  market_cap: number | null;
+  sector: string | null;
+  pe_ratio: number | null;
+  fifty_two_week_high: number | null;
+  fifty_two_week_low: number | null;
 };

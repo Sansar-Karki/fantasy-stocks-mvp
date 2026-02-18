@@ -3,6 +3,8 @@ import type {
   DraftRoomResponse,
   LeagueDetailResponse,
   LeaguePublic,
+  MarketQuote,
+  MarketSearchResult,
   MatchupWeekDetailResponse,
   MatchupWeekPublic,
   LeagueStandingsResponse,
@@ -313,4 +315,13 @@ export function recordPlayoffResult(
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ winner_user_id: winnerUserId })
   });
+}
+
+export function searchMarket(query: string, limit = 8): Promise<MarketSearchResult[]> {
+  const q = encodeURIComponent(query);
+  return request<MarketSearchResult[]>(`/market/search?q=${q}&limit=${limit}`);
+}
+
+export function getMarketQuote(ticker: string): Promise<MarketQuote> {
+  return request<MarketQuote>(`/market/${encodeURIComponent(ticker)}`);
 }
