@@ -105,7 +105,7 @@ export default function LeagueDetailPage() {
 
       <section className="card">
         <div className="actions">
-          <Link className="button button-secondary" href="/leagues">
+          <Link className="button button-secondary" href="/app/leagues">
             Back to Leagues
           </Link>
           <Link className="button" href={`/leagues/${params.id}/dashboard`}>

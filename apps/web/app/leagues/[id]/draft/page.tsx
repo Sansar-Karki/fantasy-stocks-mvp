@@ -89,54 +89,55 @@ export default function DraftRoomPage() {
     }
   }
 
-  const isMyTurn =
-    !!currentUser && !!draftRoom && draftRoom.current_picker_user_id === currentUser.id;
+  const isMyTurn = !!currentUser && !!draftRoom && draftRoom.current_picker_user_id === currentUser.id;
+  const completedPicks = draftRoom?.picks.length ?? 0;
+  const totalPicks = draftRoom?.total_picks ?? 0;
+  const progress = totalPicks > 0 ? Math.min(100, Math.round((completedPicks / totalPicks) * 100)) : 0;
 
   return (
-    <main className="container">
-      <header>
-        <p className="eyebrow">Draft Room</p>
-        <h1>League {Number.isFinite(leagueId) ? `#${leagueId}` : ""}</h1>
+    <main className="container app-container phone-canvas">
+      <header className="wire-header">
+        <Link className="icon-btn" href={`/leagues/${params.id}/dashboard`} aria-label="Back to dashboard">
+          ←
+        </Link>
+        <strong>Draft Room</strong>
+        <button className="icon-btn" type="button" onClick={handleStartDraft} aria-label="Start draft">
+          ▶
+        </button>
       </header>
 
-      <section className="card">
-        <div className="actions">
-          <Link className="button button-secondary" href={`/leagues/${params.id}`}>
-            Back to League
-          </Link>
-          <button className="button" type="button" onClick={handleStartDraft}>
-            Start Draft
-          </button>
-        </div>
-      </section>
-
-      {loading ? <p>Loading...</p> : null}
+      {loading ? <p className="muted">Loading draft room...</p> : null}
       {error ? <p className="error card">{error}</p> : null}
 
       {draftRoom ? (
         <>
-          <section className="card">
-            <h2>Draft Status</h2>
-            <p>Status: {draftRoom.draft.status}</p>
-            <p>
-              Current pick: {Math.min(draftRoom.draft.current_pick_number, draftRoom.total_picks)} /{" "}
-              {draftRoom.total_picks}
+          <section className="sheet-card draft-hero">
+            <p className="muted">League #{leagueId}</p>
+            <h1>{draftRoom.draft.status === "live" ? "Draft is live" : "Draft board ready"}</h1>
+            <div className="draft-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+              <span style={{ width: `${progress}%` }} />
+            </div>
+            <p className="muted">
+              {completedPicks} of {totalPicks} picks made · Round {draftRoom.current_round ?? "-"}
             </p>
-            <p>Current round: {draftRoom.current_round ?? "-"}</p>
-            <p>Current picker user id: {draftRoom.current_picker_user_id ?? "-"}</p>
           </section>
 
-          <section className="card">
-            <h2>Make Pick</h2>
-            <form className="form" onSubmit={handleSubmitPick}>
+          <section className="sheet-card">
+            <h2>On The Clock</h2>
+            <div className="tx-item tx-item-active">
+              <span>Current picker</span>
+              <strong>{draftRoom.current_picker_user_id ?? "-"}</strong>
+            </div>
+            <form className="form draft-form" onSubmit={handleSubmitPick}>
               <label>
-                Ticker
+                Enter ticker
                 <input
                   type="text"
                   required
                   maxLength={12}
                   value={ticker}
                   onChange={(event) => setTicker(event.target.value.toUpperCase())}
+                  placeholder="AAPL"
                 />
               </label>
               <button className="button" type="submit" disabled={!isMyTurn}>
@@ -145,19 +146,22 @@ export default function DraftRoomPage() {
             </form>
           </section>
 
-          <section className="card">
-            <h2>Picks</h2>
-            {draftRoom.picks.length === 0 ? <p>No picks yet.</p> : null}
-            <ul className="member-list">
-              {draftRoom.picks.map((pick) => (
-                <li className="member-item" key={pick.id}>
-                  <span>
-                    #{pick.pick_number} (R{pick.round_number})
-                  </span>
-                  <strong>{pick.ticker}</strong>
-                  <span className="muted">user {pick.user_id}</span>
-                </li>
-              ))}
+          <section className="sheet-card">
+            <h2>Draft Board</h2>
+            {draftRoom.picks.length === 0 ? <p className="muted">No picks yet.</p> : null}
+            <ul className="tx-list">
+              {draftRoom.picks
+                .slice()
+                .reverse()
+                .slice(0, 14)
+                .map((pick) => (
+                  <li className="tx-item" key={pick.id}>
+                    <span>
+                      Pick #{pick.pick_number} · R{pick.round_number}
+                    </span>
+                    <strong>{pick.ticker}</strong>
+                  </li>
+                ))}
             </ul>
           </section>
         </>

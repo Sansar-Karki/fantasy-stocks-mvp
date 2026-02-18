@@ -8,6 +8,8 @@ import { createTrade, listTrades, me, processDueTrades, respondTrade } from "../
 import { getToken } from "../../../../lib/auth-storage";
 import type { TradeDetailResponse, UserPublic } from "../../../../lib/types";
 
+type TradeTab = "browse" | "mine" | "offers";
+
 export default function TradesPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -21,6 +23,7 @@ export default function TradesPage() {
   const [counterpartyTickers, setCounterpartyTickers] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TradeTab>("browse");
 
   const loadTrades = useCallback(async () => {
     if (!token || !Number.isFinite(leagueId)) return;
@@ -51,7 +54,7 @@ export default function TradesPage() {
         const user = await me(token);
         setCurrentUser(user);
       } catch {
-        // Keep loading trade list even if me fails.
+        // Keep loading trade list even if profile request fails.
       }
 
       await loadTrades();
@@ -81,6 +84,7 @@ export default function TradesPage() {
       });
       setProposerTickers("");
       setCounterpartyTickers("");
+      setActiveTab("mine");
       await loadTrades();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create trade");
@@ -107,28 +111,27 @@ export default function TradesPage() {
     }
   }
 
+  const myTrades = trades.filter((trade) => trade.proposal.proposer_user_id === currentUser?.id);
+  const incomingOffers = trades.filter(
+    (trade) => trade.proposal.counterparty_user_id === currentUser?.id && trade.proposal.status === "pending"
+  );
+
   return (
-    <main className="container">
-      <header>
-        <p className="eyebrow">Trades</p>
-        <h1>League {Number.isFinite(leagueId) ? `#${leagueId}` : ""}</h1>
+    <main className="container app-container phone-canvas">
+      <header className="wire-header">
+        <Link className="icon-btn" href={`/leagues/${params.id}/dashboard`} aria-label="Back to dashboard">
+          ←
+        </Link>
+        <strong>Trading Center</strong>
+        <button className="icon-btn" type="button" onClick={handleProcessDueTrades} aria-label="Process due trades">
+          ↻
+        </button>
       </header>
 
-      <section className="card">
-        <div className="actions">
-          <Link className="button button-secondary" href={`/leagues/${params.id}`}>
-            Back to League
-          </Link>
-          <button className="button" type="button" onClick={handleProcessDueTrades}>
-            Process Due Trades
-          </button>
-        </div>
-      </section>
-
-      {loading ? <p>Loading trades...</p> : null}
+      {loading ? <p className="muted">Loading trades...</p> : null}
       {error ? <p className="error card">{error}</p> : null}
 
-      <section className="card">
+      <section className="sheet-card">
         <h2>Propose Trade</h2>
         <form className="form" onSubmit={handleCreateTrade}>
           <label>
@@ -142,11 +145,7 @@ export default function TradesPage() {
           </label>
           <label>
             Your Tickers (comma-separated)
-            <input
-              type="text"
-              value={proposerTickers}
-              onChange={(event) => setProposerTickers(event.target.value)}
-            />
+            <input type="text" value={proposerTickers} onChange={(event) => setProposerTickers(event.target.value)} />
           </label>
           <label>
             Their Tickers (comma-separated)
@@ -162,42 +161,102 @@ export default function TradesPage() {
         </form>
       </section>
 
-      <section className="card">
-        <h2>Trade Feed</h2>
-        {trades.length === 0 ? <p className="muted">No trades yet.</p> : null}
-        <ul className="member-list">
-          {trades.map((trade) => {
-            const isCounterparty = currentUser?.id === trade.proposal.counterparty_user_id;
-            return (
-              <li className="member-item" key={trade.proposal.id}>
-                <div>
-                  <p>
-                    Trade #{trade.proposal.id} [{trade.proposal.status}]
-                  </p>
-                  <p className="muted">
-                    {trade.proposal.proposer_user_id} {"->"} {trade.proposal.counterparty_user_id}
-                  </p>
-                  <p className="muted">{trade.items.map((item) => item.ticker).join(", ")}</p>
-                </div>
-                {isCounterparty && trade.proposal.status === "pending" ? (
-                  <div className="actions">
-                    <button className="button" type="button" onClick={() => handleRespond(trade.proposal.id, "accept")}>
-                      Accept
-                    </button>
-                    <button
-                      className="button button-secondary"
-                      type="button"
-                      onClick={() => handleRespond(trade.proposal.id, "decline")}
-                    >
-                      Decline
-                    </button>
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
+      <section className="sheet-card">
+        <h2>Trade Activity</h2>
+        <div className="tab-row tab-row-sheet" role="tablist" aria-label="Trade tabs">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "browse"}
+            className={activeTab === "browse" ? "tab tab-active" : "tab"}
+            onClick={() => setActiveTab("browse")}
+          >
+            Browse
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "mine"}
+            className={activeTab === "mine" ? "tab tab-active" : "tab"}
+            onClick={() => setActiveTab("mine")}
+          >
+            My Trades
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "offers"}
+            className={activeTab === "offers" ? "tab tab-active" : "tab"}
+            onClick={() => setActiveTab("offers")}
+          >
+            Offers
+          </button>
+        </div>
+
+        {activeTab === "browse" ? <TradeList trades={trades} currentUserId={currentUser?.id ?? null} onRespond={handleRespond} /> : null}
+        {activeTab === "mine" ? (
+          <TradeList trades={myTrades} currentUserId={currentUser?.id ?? null} onRespond={handleRespond} emptyText="No outgoing trades yet." />
+        ) : null}
+        {activeTab === "offers" ? (
+          <TradeList
+            trades={incomingOffers}
+            currentUserId={currentUser?.id ?? null}
+            onRespond={handleRespond}
+            emptyText="No pending offers for you."
+          />
+        ) : null}
       </section>
     </main>
+  );
+}
+
+function TradeList({
+  trades,
+  currentUserId,
+  onRespond,
+  emptyText = "No trades yet."
+}: {
+  trades: TradeDetailResponse[];
+  currentUserId: number | null;
+  onRespond: (proposalId: number, action: "accept" | "decline") => Promise<void>;
+  emptyText?: string;
+}) {
+  if (trades.length === 0) {
+    return <p className="muted">{emptyText}</p>;
+  }
+
+  return (
+    <ul className="member-list">
+      {trades.map((trade) => {
+        const isCounterparty = currentUserId === trade.proposal.counterparty_user_id;
+        return (
+          <li className="member-item trade-item" key={trade.proposal.id}>
+            <div>
+              <p>
+                Trade #{trade.proposal.id} [{trade.proposal.status}]
+              </p>
+              <p className="muted">
+                {trade.proposal.proposer_user_id} {"->"} {trade.proposal.counterparty_user_id}
+              </p>
+              <p className="muted">{trade.items.map((item) => item.ticker).join(", ") || "No tickers"}</p>
+            </div>
+            {isCounterparty && trade.proposal.status === "pending" ? (
+              <div className="actions">
+                <button className="button" type="button" onClick={() => void onRespond(trade.proposal.id, "accept")}>
+                  Accept
+                </button>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => void onRespond(trade.proposal.id, "decline")}
+                >
+                  Decline
+                </button>
+              </div>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
