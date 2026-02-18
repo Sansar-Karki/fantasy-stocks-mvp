@@ -243,3 +243,42 @@ def test_auto_snapshots_endpoint(client: TestClient, monkeypatch) -> None:
     )
     assert auto.status_code == 201
     assert auto.json()["stored"] > 0
+    assert auto.json()["failed"] == 0
+
+
+def test_auto_snapshots_partial_market_data_failure(client: TestClient, monkeypatch) -> None:
+    from app.api import matchups as matchups_api
+
+    owner = _register_and_get_token(client, "auto_fail_owner@example.com", "auto_fail_owner")
+    league = _create_league(client, owner)
+    member = _register_and_get_token(client, "auto_fail_member@example.com", "auto_fail_member")
+    join = client.post(
+        "/api/leagues/join",
+        headers={"Authorization": f"Bearer {member}"},
+        json={"invite_code": league["invite_code"]},
+    )
+    assert join.status_code == 200
+
+    _full_two_user_draft(client, league["id"], owner, member)
+
+    create_week = client.post(
+        f"/api/leagues/{league['id']}/matchups/weeks",
+        headers={"Authorization": f"Bearer {owner}"},
+        json={"week_number": 4, "week_start_date": "2026-03-16", "week_end_date": "2026-03-20"},
+    )
+    assert create_week.status_code == 201
+
+    def fake_fetch(_ticker: str, on_date):
+        if on_date.isoformat().endswith("20"):
+            raise ValueError("missing")
+        return 120.0
+
+    monkeypatch.setattr(matchups_api, "fetch_close_price_for_date", fake_fetch)
+    auto = client.post(
+        f"/api/leagues/{league['id']}/matchups/weeks/4/snapshots/auto",
+        headers={"Authorization": f"Bearer {owner}"},
+    )
+    assert auto.status_code == 201
+    payload = auto.json()
+    assert payload["stored"] > 0
+    assert payload["failed"] > 0

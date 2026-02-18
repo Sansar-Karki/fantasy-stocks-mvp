@@ -172,14 +172,20 @@ def auto_snapshots(
     }
 
     stored = 0
+    failed = 0
     for ticker in active_tickers:
-        monday_close = fetch_close_price_for_date(ticker, week.week_start_date)
-        friday_close = fetch_close_price_for_date(ticker, week.week_end_date)
-
-        for snapshot_type, price in (
-            ("monday_close", monday_close),
-            ("friday_close", friday_close),
+        prices: list[tuple[str, float]] = []
+        for snapshot_type, on_date in (
+            ("monday_close", week.week_start_date),
+            ("friday_close", week.week_end_date),
         ):
+            try:
+                price = fetch_close_price_for_date(ticker, on_date)
+                prices.append((snapshot_type, price))
+            except ValueError:
+                failed += 1
+
+        for snapshot_type, price in prices:
             existing = db.scalar(
                 select(StockSnapshot).where(
                     StockSnapshot.matchup_week_id == week.id,
@@ -202,7 +208,7 @@ def auto_snapshots(
             stored += 1
 
     db.commit()
-    return {"stored": stored}
+    return {"stored": stored, "failed": failed}
 
 
 @router.post("/weeks/{week_number}/score", response_model=MatchupWeekDetailResponse)
